@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SyncVault</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #171a23; --border: #2a2e3a;
+    --text: #e6e8ee; --muted: #8b909e; --accent: #5b8cff;
+    --good: #3fb950; --bad: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 18px; margin: 0; }
+  header h1 span { color: var(--accent); }
+  #logoutBtn { display: none; }
+  main { max-width: 800px; margin: 0 auto; padding: 24px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { margin-top: 0; font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, button { font-family: inherit; font-size: 14px; }
+  input { width: 100%; padding: 8px 10px; background: #0f1117; border: 1px solid var(--border); border-radius: 6px; color: var(--text); }
+  button { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; margin-top: 10px; margin-right: 6px; }
+  button.secondary { background: transparent; color: var(--accent); }
+  button.danger { background: transparent; color: var(--bad); border-color: var(--bad); }
+  button:hover { opacity: 0.85; }
+  .file-row { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .file-row .meta { color: var(--muted); font-size: 12px; }
+  .version-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .badge { padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge.done { background: rgba(63,185,80,.15); color: var(--good); }
+  .badge.pending { background: rgba(139,144,158,.15); color: var(--muted); }
+  .badge.failed { background: rgba(248,81,73,.15); color: var(--bad); }
+  #authSection, #appSection { display: none; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sync<span>Vault</span></h1>
+  <button id="logoutBtn" class="secondary">Log out</button>
+</header>
+
+<main>
+  <section id="authSection" class="card">
+    <h2 id="authTitle">Log in</h2>
+    <label>Username</label>
+    <input id="authUsername" placeholder="testuser" />
+    <label>Password</label>
+    <input id="authPassword" type="password" placeholder="••••••••" />
+    <div>
+      <button id="authSubmitBtn">Log in</button>
+      <button id="authToggleBtn" class="secondary">Need an account? Sign up</button>
+    </div>
+    <p id="authMsg" style="color: var(--bad); margin-top: 8px;"></p>
+  </section>
+
+  <section id="appSection">
+    <div class="card">
+      <h2>Upload a file</h2>
+      <input type="file" id="fileInput" />
+      <button id="uploadBtn">Upload</button>
+      <p id="uploadMsg" class="meta"></p>
+    </div>
+
+    <div class="card">
+      <h2>Your files</h2>
+      <button id="refreshBtn" class="secondary">Refresh</button>
+      <div id="fileList"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const API = "";
+let isSignup = false;
+
+function getToken() { return localStorage.getItem("syncvault_token"); }
+function setToken(t) { localStorage.setItem("syncvault_token", t); }
+function clearToken() { localStorage.removeItem("syncvault_token"); }
+function authHeader() { return { "Authorization": "Bearer " + getToken() }; }
+
+function showApp() {
+  document.getElementById("authSection").style.display = "none";
+  document.getElementById("appSection").style.display = "block";
+  document.getElementById("logoutBtn").style.display = "inline-block";
+  loadFiles();
+}
+function showAuth() {
+  document.getElementById("authSection").style.display = "block";
+  document.getElementById("appSection").style.display = "none";
+  document.getElementById("logoutBtn").style.display = "none";
+}
+
+document.getElementById("authToggleBtn").onclick = () => {
+  isSignup = !isSignup;
+  document.getElementById("authTitle").textContent = isSignup ? "Sign up" : "Log in";
+  document.getElementById("authSubmitBtn").textContent = isSignup ? "Sign up" : "Log in";
+  document.getElementById("authToggleBtn").textContent = isSignup ? "Already have an account? Log in" : "Need an account? Sign up";
+};
+
+document.getElementById("authSubmitBtn").onclick = async () => {
+  const username = document.getElementById("authUsername").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const msgEl = document.getElementById("authMsg");
+  msgEl.textContent = "";
+  if (!username || !password) { msgEl.textContent = "Username and password required."; return; }
+
+  try {
+    if (isSignup) {
+      const r = await fetch(`${API}/auth/signup`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({username,password}) });
+      const data = await r.json();
+      if (!r.ok) { msgEl.textContent = data.error || "Signup failed"; return; }
+    }
+    const r2 = await fetch(`${API}/auth/login`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({username,password}) });
+    const data2 = await r2.json();
+    if (!r2.ok) { msgEl.textContent = data2.error || "Login failed"; return; }
+    setToken(data2.access_token);
+    showApp();
+  } catch (e) { msgEl.textContent = "Network error: " + e.message; }
+};
+
+document.getElementById("logoutBtn").onclick = () => { clearToken(); showAuth(); };
+
+document.getElementById("uploadBtn").onclick = async () => {
+  const input = document.getElementById("fileInput");
+  const msgEl = document.getElementById("uploadMsg");
+  if (!input.files.length) { msgEl.textContent = "Choose a file first."; return; }
+
+  const formData = new FormData();
+  formData.append("file", input.files[0]);
+
+  msgEl.textContent = "Uploading...";
+  const r = await fetch(`${API}/files/upload`, { method: "POST", headers: authHeader(), body: formData });
+  const data = await r.json();
+  if (!r.ok) { msgEl.textContent = data.error || "Upload failed"; return; }
+
+  msgEl.textContent = `Uploaded "${data.filename}" as version ${data.version_number}.`;
+  input.value = "";
+  loadFiles();
+};
+
+async function loadFiles() {
+  const r = await fetch(`${API}/files`, { headers: authHeader() });
+  const files = await r.json();
+  const container = document.getElementById("fileList");
+
+  if (!Array.isArray(files) || files.length === 0) {
+    container.innerHTML = '<p class="meta">No files uploaded yet.</p>';
+    return;
+  }
+
+  container.innerHTML = "";
+  for (const f of files) {
+    const div = document.createElement("div");
+    div.className = "file-row";
+    div.innerHTML = `
+      <strong>${f.filename}</strong>
+      <span class="meta"> — ${f.total_versions} version(s), latest v${f.latest_version}</span>
+      <button class="secondary" onclick="downloadFile(${f.file_id}, '${f.filename}')">Download latest</button>
+      <button class="danger" onclick="deleteFile(${f.file_id})">Delete</button>
+      <div id="versions-${f.file_id}"></div>
+    `;
+    container.appendChild(div);
+    loadVersions(f.file_id);
+  }
+}
+
+async function loadVersions(fileId) {
+  const r = await fetch(`${API}/files/${fileId}/versions`, { headers: authHeader() });
+  const versions = await r.json();
+  const el = document.getElementById(`versions-${fileId}`);
+  el.innerHTML = versions.map(v => `
+    <div class="version-row">
+      <span>v${v.version_number} — ${v.size_bytes} bytes — ${v.content_type || "unknown type"}</span>
+      <span class="badge ${v.processing_status}">${v.processing_status}</span>
+    </div>
+    <div class="meta" style="word-break: break-all;">${v.checksum_sha256 ? "sha256: " + v.checksum_sha256 : ""}</div>
+  `).join("");
+}
+
+async function downloadFile(fileId, filename) {
+  const r = await fetch(`${API}/files/${fileId}/download`, { headers: authHeader() });
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function deleteFile(fileId) {
+  if (!confirm("Delete this file and all its versions?")) return;
+  await fetch(`${API}/files/${fileId}`, { method: "DELETE", headers: authHeader() });
+  loadFiles();
+}
+
+document.getElementById("refreshBtn").onclick = loadFiles;
+
+if (getToken()) { showApp(); } else { showAuth(); }
+</script>
+</body>
+</html>
