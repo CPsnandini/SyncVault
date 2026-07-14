@@ -50,4 +50,4 @@ Visit `http://127.0.0.1:5001`.
 | `/files/<id>` | DELETE | Delete a file and all its versions |
 
 ## Live demo
-[will add after deployment]
+https://syncvault-production.up.railway.app/
