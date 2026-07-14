@@ -1,5 +1,6 @@
 import requests
 import io
+import time
 
 BASE = "http://127.0.0.1:5001"
 
@@ -36,3 +37,7 @@ print("DOWNLOAD LATEST:", r.status_code, r.content)
 # Download version 1 specifically
 r = requests.get(f"{BASE}/files/{file_id}/download?version=1", headers=headers)
 print("DOWNLOAD V1:", r.status_code, r.content)
+
+time.sleep(1)
+r = requests.get(f"{BASE}/files/{file_id}/versions", headers=headers)
+print("VERSIONS AFTER PROCESSING:", r.status_code, r.json())

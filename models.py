@@ -37,6 +37,8 @@ class FileVersion(db.Model):
     storage_name = db.Column(db.String(255), nullable=False)  # actual name on disk (UUID-based)
     size_bytes = db.Column(db.Integer, nullable=False)
     content_type = db.Column(db.String(120))
+    checksum_sha256 = db.Column(db.String(64))   
+    processing_status = db.Column(db.String(20), default="pending")
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 

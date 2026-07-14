@@ -4,6 +4,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from extensions import db
 from models import FileRecord, FileVersion, generate_storage_name
+from background_tasks import process_file_version_async
+from flask import current_app
 
 file_bp = Blueprint("files", __name__, url_prefix="/files")
 
@@ -49,12 +51,14 @@ def upload_file():
     )
     db.session.add(version)
     db.session.commit()
+    process_file_version_async(current_app._get_current_object(), version.id, storage_path)
 
     return jsonify({
         "file_id": file_record.id,
         "filename": file_record.filename,
         "version_number": version.version_number,
         "size_bytes": version.size_bytes,
+        "processing_status": version.processing_status,
     }), 201
 
 
@@ -85,6 +89,8 @@ def list_versions(file_id):
         "version_number": v.version_number,
         "size_bytes": v.size_bytes,
         "content_type": v.content_type,
+        "checksum_sha256": v.checksum_sha256,
+        "processing_status": v.processing_status,
         "uploaded_at": v.uploaded_at.isoformat(),
     } for v in f.versions]), 200
 
