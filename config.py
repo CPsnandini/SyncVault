@@ -18,4 +18,4 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     STORAGE_DIR = os.path.join(BASE_DIR, "storage")
-    MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB upload limit
+    MAX_CONTENT_LENGTH = 25 * 1024 * 1024
