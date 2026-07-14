@@ -49,5 +49,5 @@ Visit `http://127.0.0.1:5001`.
 | `/files/<id>/download` | GET | Download latest version (or `?version=N`) |
 | `/files/<id>` | DELETE | Delete a file and all its versions |
 
-## Live demo
+## Live URL
 https://syncvault-production.up.railway.app/
